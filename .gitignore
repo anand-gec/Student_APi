@@ -32,4 +32,5 @@ go.work.sum
 # .idea/
 .vscode/
 storage
+/config
 
