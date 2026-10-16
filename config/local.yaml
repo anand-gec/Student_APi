@@ -1,0 +1,4 @@
+env: "dev"
+storage_path: "storage/storage.go"
+http_server:
+  address:"localhost:8082"
