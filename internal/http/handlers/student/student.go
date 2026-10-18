@@ -7,13 +7,15 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 
+	"github.com/anand-gec/student-api/internal/storage"
 	"github.com/anand-gec/student-api/internal/types"
 	"github.com/anand-gec/student-api/internal/utils/response"
 	"github.com/go-playground/validator/v10"
 )
 
-func New() http.HandlerFunc {
+func New(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slog.Info("Creating a student")
 
@@ -37,7 +39,40 @@ func New() http.HandlerFunc {
 			return
 		}
 
-		response.WriteJson(w, http.StatusCreated, map[string]string{"SuccessFully Created": "StudentID"})
+		lastId, err := storage.CreateStudent(
+			student.Name,
+			student.Email,
+			student.Age,
+		)
+		slog.Info("User created Successfully", slog.String("userId", fmt.Sprint(lastId)))
+
+		if err != nil {
+			response.WriteJson(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		response.WriteJson(w, http.StatusCreated, map[string]int64{"id": lastId})
 
 	}
+}
+
+func GetById(storage storage.Storage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		slog.Info("getting a student", slog.String("id", id))
+
+		intId, err := strconv.ParseInt(id, 10, 64) // used for convert in to int64 value -> strconv.ParseInt( , 10,64) it is used for 10 digit and int64 for 64
+		if err != nil {
+			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
+			return 
+		}
+		student, err := storage.GetStatusById(intId)
+		if err != nil {
+			slog.Error("error getting user",slog.String("id",id))
+			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
+			return 
+
+	}
+	response.WriteJson(w,http.StatusOK,student)
+}
 }
