@@ -29,6 +29,7 @@ func New(storage storage.Storage) http.HandlerFunc {
 
 		if err != nil {
 			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
+			return 
 		}
 
 		// request validation
@@ -64,15 +65,65 @@ func GetById(storage storage.Storage) http.HandlerFunc {
 		intId, err := strconv.ParseInt(id, 10, 64) // used for convert in to int64 value -> strconv.ParseInt( , 10,64) it is used for 10 digit and int64 for 64
 		if err != nil {
 			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
-			return 
+			return
 		}
 		student, err := storage.GetStatusById(intId)
 		if err != nil {
-			slog.Error("error getting user",slog.String("id",id))
+			slog.Error("error getting user", slog.String("id", id))
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
-			return 
+			return
 
+		}
+		response.WriteJson(w, http.StatusOK, student)
 	}
-	response.WriteJson(w,http.StatusOK,student)
 }
+
+func GetList(storage storage.Storage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		slog.Info("getting all students")
+
+		students, err := storage.GetStudents()
+		if err != nil {
+			response.WriteJson(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		response.WriteJson(w, http.StatusOK, students)
+	}
+}
+
+func DeleteStudentId(storege storage.Storage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.PathValue("id")
+
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
+			return
+		}
+		
+		err = storege.DeleteStudentById(id)
+		if err != nil {
+			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
+			return
+		}
+		response.WriteJson(w, http.StatusOK, map[string]string{
+			"status":  "success",
+			"message": fmt.Sprintf("student %d deleted successfully", id),
+		})
+	}
+}
+
+func DeleteAll(storage storage.Storage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		count, err := storage.DeleteAllStudents()
+		if err != nil {
+			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
+			return
+		}
+		response.WriteJson(w, http.StatusOK, map[string]any{
+			"status":  "Success",
+			"message": fmt.Sprintf("Successfully deleted %d students", count),
+		})
+	}
 }

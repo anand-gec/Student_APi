@@ -18,6 +18,7 @@ type Config struct {
 	Env         string `yaml:"env" env:"ENV" env-required:"true"`
 	StoragePath string `yaml:"storage_path" env-required:"true"`
 	HTTPServer `yaml:"http_server"`
+	JWTSecret   string `yaml:"jwt_secret" env:"JWT_SECRET" env-default:"Anand@23"`
 }
 
 func MustLoad() *Config {
