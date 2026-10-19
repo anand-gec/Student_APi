@@ -40,7 +40,6 @@ func main() {
 	// Optional: Admin registration endpoint
 	router.HandleFunc("POST /api/admin/register", admin.Register(storage))
 
-	// ==================== PROTECTED ROUTES ====================
 	// All student actions wrapped with RequireAdminAuth middleware
 	router.HandleFunc("POST /api/students", middleware.RequireAdminAuth(student.New(storage)))
 	router.HandleFunc("GET /api/students/{id}", middleware.RequireAdminAuth(student.GetById(storage)))
