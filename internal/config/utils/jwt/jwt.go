@@ -2,7 +2,6 @@ package jwt
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -47,7 +46,6 @@ func ValidateToken(tokenString string) (*AdminClaims, error) {
 		}
 		return secretKey, nil
 	})
-	fmt.Println(err)
 
 	if err != nil {
 		return nil, err
