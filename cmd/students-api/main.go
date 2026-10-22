@@ -12,6 +12,7 @@ import (
 
 	"github.com/anand-gec/student-api/internal/config"
 	"github.com/anand-gec/student-api/internal/config/utils/jwt"
+	httpdocs "github.com/anand-gec/student-api/internal/http"
 	"github.com/anand-gec/student-api/internal/http/handlers/admin"
 	"github.com/anand-gec/student-api/internal/http/handlers/student"
 	"github.com/anand-gec/student-api/internal/http/middleware"
@@ -34,6 +35,9 @@ func main() {
 	slog.Info("storage initialized", slog.String("env", cfg.Env), slog.String("version", "1.0.0")) // used for versioning and also where to come value
 	// setup router
 	router := http.NewServeMux()
+
+	router.HandleFunc("GET /swagger/", httpdocs.SwaggerUI)
+	router.HandleFunc("GET /swagger/openapi.yaml", httpdocs.OpenAPISpec)
 
 	// Admin login endpoint to obtain JWT token
 	router.HandleFunc("POST /api/admin/login", admin.Login(storage))

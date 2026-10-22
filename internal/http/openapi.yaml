@@ -1,0 +1,232 @@
+openapi: 3.0.3
+info:
+  title: Student API
+  description: Admin authentication and JWT-protected student management operations.
+  version: 1.0.0
+servers:
+  - url: /
+paths:
+  /api/admin/register:
+    post:
+      tags: [Admin]
+      summary: Register an admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminCredentials"
+            example:
+              email: admin@example.com
+              password: secret123
+      responses:
+        "201":
+          description: Admin registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Success
+                  Admin_id:
+                    type: integer
+                    format: int64
+        "400":
+          description: Invalid request body or missing credentials
+        "500":
+          description: Failed to register admin
+  /api/admin/login:
+    post:
+      tags: [Admin]
+      summary: Log in as an admin and get a JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminCredentials"
+            example:
+              email: admin@example.com
+              password: secret123
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  token:
+                    type: string
+                    description: JWT token to authorize student operations
+        "400":
+          description: Invalid request body
+        "401":
+          description: Invalid credentials
+  /api/students:
+    post:
+      tags: [Students]
+      summary: Create a student
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentInput"
+            example:
+              name: John Doe
+              email: john@example.com
+              age: 21
+      responses:
+        "201":
+          description: Student created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    format: int64
+        "400":
+          description: Invalid or missing student data
+        "401":
+          description: Missing or invalid bearer token
+        "500":
+          description: Failed to create student
+    get:
+      tags: [Students]
+      summary: List all students
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Student list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Student"
+        "401":
+          description: Missing or invalid bearer token
+        "500":
+          description: Failed to retrieve students
+    delete:
+      tags: [Students]
+      summary: Delete all students
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Students deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: Success
+                  message:
+                    type: string
+                    example: Successfully deleted 3 students
+        "401":
+          description: Missing or invalid bearer token
+        "500":
+          description: Failed to delete students
+  /api/students/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Student ID
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags: [Students]
+      summary: Get a student by ID
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Student details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "400":
+          description: Invalid student ID
+        "401":
+          description: Missing or invalid bearer token
+        "500":
+          description: Failed to retrieve student
+    delete:
+      tags: [Students]
+      summary: Delete a student by ID
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Student deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: student 1 deleted successfully
+        "400":
+          description: Invalid student ID
+        "401":
+          description: Missing or invalid bearer token
+        "500":
+          description: Failed to delete student
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    AdminCredentials:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    StudentInput:
+      type: object
+      required: [name, email, age]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        age:
+          type: integer
+    Student:
+      allOf:
+        - $ref: "#/components/schemas/StudentInput"
+        - type: object
+          properties:
+            id:
+              type: integer
+              format: int64

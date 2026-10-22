@@ -17,7 +17,7 @@ func RequireAdminAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			// return 401 missing header 
+			response.WriteJson(w, http.StatusUnauthorized, map[string]string{"error": "Unauthorized: missing token"})
 			return
 		}
 

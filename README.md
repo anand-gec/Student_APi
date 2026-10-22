@@ -79,6 +79,24 @@ The server starts on the address defined in the config file, for example:
 http://localhost:8082
 ```
 
+## Swagger UI
+
+With the server running, open this URL in your browser:
+
+```text
+http://localhost:8082/swagger/
+```
+
+Swagger UI lists and lets you try the available API operations. To call student
+operations, first use `POST /api/admin/register` or `POST /api/admin/login`.
+Copy the login response's `token`, click **Authorize** in Swagger UI, and enter
+the token. The UI uses the Swagger UI assets from a CDN, so an internet
+connection is required to load the interface. The OpenAPI document is available
+at `/swagger/openapi.yaml`.
+
+The current API supports creating, listing, fetching, and deleting students.
+It does not currently have an update/modify student endpoint.
+
 ## API Endpoints
 
 ### Admin Authentication
