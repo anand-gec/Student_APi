@@ -231,7 +231,7 @@ func (s *Sqlite) StoreResetToken(email string) (string, error) {
 
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
-		return "", fmt.Errorf("failed to generate randomtoken: %w", err)
+		return "", fmt.Errorf("failed to generate random token: %w", err)
 	}
 	token := hex.EncodeToString(bytes)
 
@@ -270,7 +270,7 @@ func (s *Sqlite) ResetPasswordWithToken(token, newPlainPassword string) error {
 		return fmt.Errorf("reset token has expired")
 	}
 
-	//pass becrypt
+	//pass decrypt
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPlainPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
