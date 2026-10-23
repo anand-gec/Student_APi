@@ -264,7 +264,7 @@ func (s *Sqlite) ResetPasswordWithToken(token, newPlainPassword string) error {
 		return fmt.Errorf("database query error: %w", err)
 	}
 
-	// ceck token expire
+	// check token expire
 	if time.Now().After(expireAt) {
 		_, _ = s.Db.Exec("DELETE FROM password_resets WHERE token = ?", token)
 		return fmt.Errorf("reset token has expired")
