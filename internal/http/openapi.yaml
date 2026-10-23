@@ -68,6 +68,68 @@ paths:
           description: Invalid request body
         "401":
           description: Invalid credentials
+  /api/admin/forgot-password:
+    post:
+      tags: [Admin]
+      summary: Generate a password reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+            example:
+              email: admin@example.com
+      responses:
+        "200":
+          description: Password reset token generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  reset_token:
+                    type: string
+        "400":
+          description: Invalid email
+        "404":
+          description: Admin not found
+        "500":
+          description: Failed to generate reset token
+  /api/admin/reset-password:
+    post:
+      tags: [Admin]
+      summary: Reset an admin password using a reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, new_password]
+              properties:
+                token:
+                  type: string
+                new_password:
+                  type: string
+                  format: password
+            example:
+              token: reset-token
+              new_password: newsecret123
+      responses:
+        "200":
+          description: Password reset successfully
+        "400":
+          description: Invalid or expired token or password
   /api/students:
     post:
       tags: [Students]
@@ -169,6 +231,33 @@ paths:
           description: Missing or invalid bearer token
         "500":
           description: Failed to retrieve student
+    put:
+      tags: [Students]
+      summary: Replace a student's details
+      description: All fields are required because this is a complete update.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentInput"
+            example:
+              name: John Doe
+              email: john@example.com
+              age: 22
+      responses:
+        "200":
+          description: Student updated
+        "400":
+          description: Invalid student ID or student data
+        "401":
+          description: Missing or invalid bearer token
+        "404":
+          description: Student not found
+        "500":
+          description: Failed to update student
     delete:
       tags: [Students]
       summary: Delete a student by ID

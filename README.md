@@ -64,7 +64,7 @@ jwt_secret: "your-secret-key"
 
 ```bash
 go mod download
-go run ./cmd/students-api
+go run ./cmd/students-api -config config/local.yaml
 ```
 
 Or with config explicitly provided:
@@ -81,21 +81,18 @@ http://localhost:8082
 
 ## Swagger UI
 
-With the server running, open this URL in your browser:
+With the server running, open:
 
 ```text
 http://localhost:8082/swagger/
 ```
 
-Swagger UI lists and lets you try the available API operations. To call student
-operations, first use `POST /api/admin/register` or `POST /api/admin/login`.
-Copy the login response's `token`, click **Authorize** in Swagger UI, and enter
-the token. The UI uses the Swagger UI assets from a CDN, so an internet
-connection is required to load the interface. The OpenAPI document is available
-at `/swagger/openapi.yaml`.
-
-The current API supports creating, listing, fetching, and deleting students.
-It does not currently have an update/modify student endpoint.
+Swagger UI lists the available operations and lets you try them. Register or log
+in using the Admin section, then click **Authorize** and enter the returned
+JWT. Student operations include creating, listing, fetching, updating with
+`PUT`, and deleting students. Swagger UI assets are loaded from a CDN, so the
+browser needs an internet connection. The OpenAPI document is available at
+`/swagger/openapi.yaml`.
 
 ## API Endpoints
 

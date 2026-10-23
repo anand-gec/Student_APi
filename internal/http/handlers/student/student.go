@@ -1,6 +1,7 @@
 package student
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,7 +30,7 @@ func New(storage storage.Storage) http.HandlerFunc {
 
 		if err != nil {
 			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
-			return 
+			return
 		}
 
 		// request validation
@@ -54,6 +55,44 @@ func New(storage storage.Storage) http.HandlerFunc {
 
 		response.WriteJson(w, http.StatusCreated, map[string]int64{"id": lastId})
 
+	}
+}
+
+func UpdateStudent(storage storage.Storage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil {
+			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
+			return
+		}
+
+		var student types.Student
+		if err := json.NewDecoder(r.Body).Decode(&student); err != nil {
+			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
+			return
+		}
+		if err := validator.New().Struct(student); err != nil {
+			validateErrs, ok := err.(validator.ValidationErrors)
+			if !ok {
+				response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
+				return
+			}
+			response.WriteJson(w, http.StatusBadRequest, response.ValidationError(validateErrs))
+			return
+		}
+
+		if err := storage.UpdateStudent(id, student.Name, student.Email, student.Age); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				response.WriteJson(w, http.StatusNotFound, response.GeneralError(err))
+				return
+			}
+			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
+			return
+		}
+		response.WriteJson(w, http.StatusOK, map[string]string{
+			"status":  "success",
+			"message": fmt.Sprintf("student %d updated successfully", id),
+		})
 	}
 }
 
@@ -101,7 +140,7 @@ func DeleteStudentId(storege storage.Storage) http.HandlerFunc {
 			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
 			return
 		}
-		
+
 		err = storege.DeleteStudentById(id)
 		if err != nil {
 			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))

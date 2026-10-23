@@ -44,8 +44,12 @@ func main() {
 	// Optional: Admin registration endpoint
 	router.HandleFunc("POST /api/admin/register", admin.Register(storage))
 
+	router.HandleFunc("POST /api/admin/forgot-password", admin.ForgotPassword(storage))
+	router.HandleFunc("POST /api/admin/reset-password", admin.ResetPassword(storage))
+
 	// All student actions wrapped with RequireAdminAuth middleware
 	router.HandleFunc("POST /api/students", middleware.RequireAdminAuth(student.New(storage)))
+	router.HandleFunc("PUT /api/students/{id}", middleware.RequireAdminAuth(student.UpdateStudent(storage)))
 	router.HandleFunc("GET /api/students/{id}", middleware.RequireAdminAuth(student.GetById(storage)))
 	router.HandleFunc("GET /api/students", middleware.RequireAdminAuth(student.GetList(storage)))
 	router.HandleFunc("DELETE /api/students/{id}", middleware.RequireAdminAuth(student.DeleteStudentId(storage)))
