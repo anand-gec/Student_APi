@@ -21,40 +21,37 @@ import (
 )
 
 func main() {
-	// 1. Load config
-	cfg := config.MustLoad()
+	// load config
+	cfg := config.MustLoad() // to import from others file package name than it's function name
+	// database setup
 
-	// 2. Setup JWT Secret
+	// JWT secret from config
 	jwt.SetSecret(cfg.JWTSecret)
 
-	// 3. Database setup
+	// Database Setup
 	storage, err := sqlite.New(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Ensure database file locks/connections are released on shutdown
-	defer func() {
-		if closer, ok := any(storage).(interface{ Close() error }); ok {
-			_ = closer.Close()
-		}
-	}()
 
-	slog.Info("storage initialized", slog.String("env", cfg.Env), slog.String("version", "1.0.0"))
+	slog.Info("storage initialized", slog.String("env", cfg.Env), slog.String("version", "1.0.0")) // used for versioning and also where to come value
 
-	// 4. Setup router
+	// setup router
 	router := http.NewServeMux()
 
 	// Swagger docs
 	router.HandleFunc("GET /swagger/", httpdocs.SwaggerUI)
 	router.HandleFunc("GET /swagger/openapi.yaml", httpdocs.OpenAPISpec)
 
-	// Admin endpoints
+	// Admin login endpoint to obtain JWT token
 	router.HandleFunc("POST /api/admin/login", admin.Login(storage))
+	// Optional: Admin registration endpoint
 	router.HandleFunc("POST /api/admin/register", admin.Register(storage))
+
 	router.HandleFunc("POST /api/admin/forgot-password", admin.ForgotPassword(storage))
 	router.HandleFunc("POST /api/admin/reset-password", admin.ResetPassword(storage))
 
-	// Protected student endpoints
+	// All student actions wrapped with RequireAdminAuth middleware
 	router.HandleFunc("POST /api/students", middleware.RequireAdminAuth(student.New(storage)))
 	router.HandleFunc("PUT /api/students/{id}", middleware.RequireAdminAuth(student.UpdateStudent(storage)))
 	router.HandleFunc("GET /api/students/{id}", middleware.RequireAdminAuth(student.GetById(storage)))
@@ -62,41 +59,46 @@ func main() {
 	router.HandleFunc("DELETE /api/students/{id}", middleware.RequireAdminAuth(student.DeleteStudentId(storage)))
 	router.HandleFunc("DELETE /api/students", middleware.RequireAdminAuth(student.DeleteAll(storage)))
 
-	// 5. Setup HTTP server with proper network timeouts
+	// setup server
+
 	server := http.Server{
-		Addr:         cfg.Addr,
-		Handler:      router,
+		Addr:    cfg.Addr,
+		Handler: router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  1 * time.Minute,
 	}
 
 	slog.Info("server started", slog.String("address", cfg.Addr))
+	// fmt.Printf("Server Started  %s", cfg.HTTPServer.Addr)
 
-	// Channel to listen for OS signals
+	//Channel to listen for OS signals
 	done := make(chan os.Signal, 1)
+
+	//notify when interrupt signal get hare.
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	// Start server in background goroutine
+	// for graceful ShortDown the code.. using this functions
 	go func() {
 		err := server.ListenAndServe()
-		// FIX: Ignore http.ErrServerClosed because it is expected on graceful shutdown
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("Failed to start server: %v", err)
+
+		// Ignore ErrServerClosed during normal shutdown
+		if err != nil && errors.Is(err,http.ErrServerClosed) {
+			log.Fatalf("Failed to start Server: %v,",err)
 		}
 	}()
 
 	// Block until signal is received
 	<-done
 
-	slog.Info("Shutting down the server...")
+	slog.Info("Shutting Down the server")
 
 	// Context with timeout to give active requests time to finish
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		slog.Error("Failed to shutdown server cleanly", slog.String("error", err.Error()))
+		slog.Error("Failed to Shutdown server ", slog.String("error", err.Error()))
 	}
 
 	/*
