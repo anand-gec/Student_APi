@@ -1,111 +1,84 @@
 # Student API
 
-A lightweight Go REST API for managing student records with SQLite persistence and JWT-protected admin endpoints.
+A Go REST API for managing student records with SQLite persistence. Admins can register and sign in to receive a JWT, which is required for all student-management endpoints.
 
 ## Features
 
-- Create, list, fetch by ID, and delete student records
-- SQLite database storage
-- Admin registration and login flow
-- JWT-based authentication for student-related API routes
-- JSON response helpers and request validation
+- Create, list, retrieve, update, and delete students
+- Register and log in admins; passwords are stored as bcrypt hashes
+- Generate a time-limited password-reset token and reset an admin password
+- Protect student endpoints with JWT bearer authentication
+- Serve an embedded OpenAPI specification and Swagger UI
+- Handle interrupt and termination signals for server shutdown
 
-## Tech Stack
+## Requirements
 
-- Go
-- SQLite
-- JWT (`golang-jwt`)
-- `net/http` router
-- `cleanenv` for configuration
-- `validator` for request validation
-
-## Project Structure
-
-```text
-.
-├── cmd/
-│   └── students-api/
-│       └── main.go
-├── config/
-│   └── local.yaml
-├── internal/
-│   ├── config/
-│   ├── http/
-│   ├── storage/
-│   ├── types/
-│   └── utils/
-├── storage/
-│   └── storage.db
-├── go.mod
-├── go.sum
-└── README.md
-```
-
-## Prerequisites
-
-- Go 1.27+ (or a version compatible with the module definition in `go.mod`)
-- A SQLite database file or a writable database path
+- Go 1.27.0 or later, as specified in [`go.mod`](./go.mod)
+- A writable directory and file path for the SQLite database
 
 ## Configuration
 
-The app loads configuration from a YAML file. Set the path through the `CONFIG_PATH` environment variable or by passing `-config` when running the service.
+The application reads YAML configuration from the path supplied by `-config` or the `CONFIG_PATH` environment variable. `CONFIG_PATH` takes precedence when both are set. The YAML fields are:
 
-Example configuration file:
+| Field | Description |
+| --- | --- |
+| `env` | Environment name, included in startup logs |
+| `storage_path` | SQLite database file path |
+| `http_server.address` | HTTP listen address, such as `localhost:8082` |
+| `jwt_secret` | Secret used to sign and validate JWTs; set a private, sufficiently random value |
+
+For example:
 
 ```yaml
 env: "dev"
-storage_path: "storage/storage.db"
+storage_path: "storage/students.db"
 http_server:
   address: "localhost:8082"
-jwt_secret: "your-secret-key"
+jwt_secret: "replace-with-a-private-random-secret"
 ```
 
-## Running the Application
+The checked-in [`config/local.yaml`](./config/local.yaml) currently sets `storage_path` to `storage/storage.go`, which is a Go source file, not a database file. Before starting the service with that config, change it to a writable database path such as `storage/students.db`. The `storage` directory already exists in this repository.
 
-```bash
-go mod download
+`ENV` and `JWT_SECRET` can override the corresponding YAML values. The storage path and listen address are read from YAML.
+
+## Run
+
+From the repository root, after correcting the database path as described above:
+
+```sh
 go run ./cmd/students-api -config config/local.yaml
 ```
 
-Or with config explicitly provided:
+Or specify the config path in the environment:
 
-```bash
+```sh
 CONFIG_PATH=config/local.yaml go run ./cmd/students-api
 ```
 
-The server starts on the address defined in the config file, for example:
+The [`Makefile`](./Makefile) also provides a `run` target:
 
-```text
-http://localhost:8082
+```sh
+make run
 ```
 
-## Swagger UI
+With the example address, the API listens at `http://localhost:8082`. The application handles interrupt and termination signals and attempts a bounded shutdown.
 
-With the server running, open:
+On startup, SQLite creates the `students`, `admins`, and `password_resets` tables if they do not already exist.
 
-```text
-http://localhost:8082/swagger/
-```
+## API
 
-Swagger UI lists the available operations and lets you try them. Register or log
-in using the Admin section, then click **Authorize** and enter the returned
-JWT. Student operations include creating, listing, fetching, updating with
-`PUT`, and deleting students. Swagger UI assets are loaded from a CDN, so the
-browser needs an internet connection. The OpenAPI document is available at
-`/swagger/openapi.yaml`.
+All request and response bodies use JSON. Student fields are `name` (string), `email` (string), and `age` (integer); all are required on create and update. Student responses include the generated `id`.
 
-## API Endpoints
+### Admin endpoints
 
-### Admin Authentication
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/api/admin/register` | Register an admin |
+| `POST` | `/api/admin/login` | Verify credentials and return a JWT |
+| `POST` | `/api/admin/forgot-password` | Generate a password-reset token |
+| `POST` | `/api/admin/reset-password` | Set a new password using a reset token |
 
-#### Register an admin
-
-```http
-POST /api/admin/register
-Content-Type: application/json
-```
-
-Request body:
+Register and login request:
 
 ```json
 {
@@ -114,23 +87,7 @@ Request body:
 }
 ```
 
-#### Login an admin
-
-```http
-POST /api/admin/login
-Content-Type: application/json
-```
-
-Request body:
-
-```json
-{
-  "email": "admin@example.com",
-  "password": "secret123"
-}
-```
-
-Response:
+Successful login returns HTTP `200` with a token:
 
 ```json
 {
@@ -139,19 +96,41 @@ Response:
 }
 ```
 
-### Student Routes
+Registration returns HTTP `201` with the new `Admin_id`. Duplicate email addresses or storage errors return an error.
 
-All student routes are protected with JWT-based admin authorization.
+To request a reset token:
 
-#### Create a student
-
-```http
-POST /api/students
-Authorization: Bearer <jwt-token>
-Content-Type: application/json
+```json
+{
+  "email": "admin@example.com"
+}
 ```
 
-Request body:
+The intended token lifetime is 15 minutes, and the token is returned in the response as `reset_token`. No email is sent by this application. Note that the current SQLite implementation creates a `password_resets` table but attempts to insert into `password_reset` (singular), so requesting a reset token currently fails until those table names are made consistent. To reset the password once that issue is corrected, submit:
+
+```json
+{
+  "token": "<reset-token>",
+  "new_password": "newsecret123"
+}
+```
+
+The reset endpoint requires a password of at least six characters.
+
+### Student endpoints
+
+Every student endpoint requires a valid admin JWT.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/api/students` | Create a student |
+| `GET` | `/api/students` | List all students |
+| `GET` | `/api/students/{id}` | Get a student by ID |
+| `PUT` | `/api/students/{id}` | Replace all student fields |
+| `DELETE` | `/api/students/{id}` | Delete a student by ID |
+| `DELETE` | `/api/students` | Delete all students |
+
+Create and update request:
 
 ```json
 {
@@ -161,46 +140,44 @@ Request body:
 }
 ```
 
-#### Get all students
+New student creation returns HTTP `201` with the generated `id`. Updates return HTTP `200`; deleting a student or deleting all students returns HTTP `200` with a status message. Invalid IDs and invalid or missing student fields return HTTP `400`. Updating a nonexistent student returns HTTP `404`.
 
-```http
-GET /api/students
-Authorization: Bearer <jwt-token>
-```
+### Authentication
 
-#### Get a student by ID
-
-```http
-GET /api/students/{id}
-Authorization: Bearer <jwt-token>
-```
-
-#### Delete a student by ID
-
-```http
-DELETE /api/students/{id}
-Authorization: Bearer <jwt-token>
-```
-
-#### Delete all students
-
-```http
-DELETE /api/students
-Authorization: Bearer <jwt-token>
-```
-
-## Authentication
-
-Protected routes require an `Authorization` header in this format:
+Pass the login token in the `Authorization` header using the bearer scheme:
 
 ```http
 Authorization: Bearer <jwt-token>
 ```
 
-If the token is missing or invalid, the API responds with an unauthorized error.
+Tokens are signed with the configured JWT secret and expire after 24 hours. Missing or invalid tokens return HTTP `401`.
 
-## Notes
+## Swagger UI and OpenAPI
 
-- The app uses SQLite tables named `students` and `admins`.
-- Admin passwords are hashed before being stored in the database.
-- The project is designed as a simple CRUD API for learning and internal use.
+With the service running, open [`http://localhost:8082/swagger/`](http://localhost:8082/swagger/). The embedded OpenAPI document is available at [`http://localhost:8082/swagger/openapi.yaml`](http://localhost:8082/swagger/openapi.yaml). Swagger UI assets are loaded from a CDN, so viewing the interactive UI requires an internet connection.
+
+## Project layout
+
+```text
+.
+├── cmd/students-api/       # Application entry point and HTTP routes
+├── config/                 # Local YAML configuration
+├── internal/config/        # Configuration loading and JWT helpers
+├── internal/http/          # Swagger UI, OpenAPI, handlers, and middleware
+├── internal/storage/       # Storage interface and SQLite implementation
+├── internal/types/         # Student and admin data types
+├── internal/utils/         # JSON response helpers
+├── Makefile
+├── go.mod
+└── README.md
+```
+
+## Development
+
+Run the Go test suite with:
+
+```sh
+go test ./...
+```
+
+Use a private JWT secret and avoid exposing password-reset tokens. The current reset endpoint returns the token directly for local testing, and admin registration is publicly reachable; review these behaviors before exposing the API to untrusted networks.
