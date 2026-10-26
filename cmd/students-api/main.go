@@ -23,7 +23,6 @@ import (
 func main() {
 	// load config
 	cfg := config.MustLoad() // to import from others file package name than it's function name
-	// database setup
 
 	// JWT secret from config
 	jwt.SetSecret(cfg.JWTSecret)
@@ -59,8 +58,7 @@ func main() {
 	router.HandleFunc("DELETE /api/students/{id}", middleware.RequireAdminAuth(student.DeleteStudentId(storage)))
 	router.HandleFunc("DELETE /api/students", middleware.RequireAdminAuth(student.DeleteAll(storage)))
 
-	// setup server
-
+	// setup HTTP server with proper network timeouts
 	server := http.Server{
 		Addr:    cfg.Addr,
 		Handler: router,
@@ -72,13 +70,13 @@ func main() {
 	slog.Info("server started", slog.String("address", cfg.Addr))
 	// fmt.Printf("Server Started  %s", cfg.HTTPServer.Addr)
 
-	//Channel to listen for OS signals
+	// Channel to listen for OS signals
 	done := make(chan os.Signal, 1)
 
-	//notify when interrupt signal get hare.
+	// notify when interrupt signal get hare.
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	// for graceful ShortDown the code.. using this functions
+	// Start server in background goroutine
 	go func() {
 		err := server.ListenAndServe()
 
