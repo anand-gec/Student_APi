@@ -9,4 +9,4 @@ CONFIG ?= config/local.yaml
 
 .PHONY: run
 run:
-	go run cmd/students-api/main.go -config $(CONFIG)
+	@go run cmd/students-api/main.go -config $(CONFIG)

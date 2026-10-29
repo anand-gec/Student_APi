@@ -60,8 +60,8 @@ func main() {
 
 	// setup HTTP server with proper network timeouts
 	server := http.Server{
-		Addr:    cfg.Addr,
-		Handler: router,
+		Addr:         cfg.Addr,
+		Handler:      router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  1 * time.Minute,
@@ -81,8 +81,8 @@ func main() {
 		err := server.ListenAndServe()
 
 		// Ignore ErrServerClosed during normal shutdown
-		if err != nil && errors.Is(err,http.ErrServerClosed) {
-			log.Fatalf("Failed to start Server: %v,",err)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("Failed to start Server: %v,", err)
 		}
 	}()
 
